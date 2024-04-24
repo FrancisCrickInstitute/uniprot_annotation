@@ -1,7 +1,3 @@
-# Project Title
-
-uniprot\_annotation.py
-
 ## Description
 
 A simple script that takes a list of UniProt IDs, and pulls residue-level annotations
@@ -24,7 +20,7 @@ No dependencies for now - only a modern version of Python (>=3.10).
 
 ### Installing
 
-* No installation needed, just clone the repo and it should be ready to run.
+No installation needed, just clone the repo and it should be ready to run.
 
 ### Executing program
 
