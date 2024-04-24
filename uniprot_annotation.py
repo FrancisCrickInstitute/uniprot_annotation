@@ -8,9 +8,6 @@ import json
 
 POLLING_INTERVAL = 3
 API_URL = "https://rest.uniprot.org"
-FEATURES = {'Modified residue', 
-            'Natural variant', 
-            'Binding site'}
 
 def check_response(response):
     try:
@@ -55,21 +52,20 @@ def extract_res_annotations(results):
             start = feature['location']['start']['value']
             end = feature['location']['end']['value']
             ftype = feature['type']
-            if ftype in FEATURES:
-                for k, res in enumerate(range(start, end+1)):
-                    resname = sequence[res-1]
-                    key = (entry['from'], f'{resname}{res}')
-                    # Get residue annotations
-                    annotations[key].add(ftype)
-                    # Get variants
-                    if ftype == 'Natural variant':
-                        try:
-                            orseq = feature['alternativeSequence']['originalSequence']
-                            altseqs = feature['alternativeSequence']['alternativeSequences']
-                        except KeyError:
-                            continue
-                        for v in altseqs:
-                            variants[key].add(v[k])
+            for k, res in enumerate(range(start, end+1)):
+                resname = sequence[res-1]
+                key = (entry['from'], f'{resname}{res}')
+                # Get residue annotations
+                annotations[key].add(ftype)
+                # Get variants
+                if ftype == 'Natural variant':
+                    try:
+                        orseq = feature['alternativeSequence']['originalSequence']
+                        altseqs = feature['alternativeSequence']['alternativeSequences']
+                    except KeyError:
+                        continue
+                    for v in altseqs:
+                        variants[key].add(v[k])
     return annotations, variants
 
 def write_csv(annotations, variants, outfile):
