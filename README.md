@@ -8,6 +8,8 @@ As of now, it produces a .csv file with the following info:
 * Residue ID
 * Residue features (e.g. 'Natural variant', 'Modified residue' etc.)
 * Curated variants (from humsavar)
+* Subcellular locations
+* GO terms (all and categorised)
 
 ## Getting Started
 

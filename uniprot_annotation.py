@@ -16,6 +16,7 @@ def check_response(response):
         print(response.json())
         raise
 
+
 def submit_id_mapping(from_db, toDB, ids):
     response = requests.post(
         f"{API_URL}/idmapping/run", 
@@ -39,15 +40,50 @@ def get_id_mapping_results(job_id, max_retries=20):
         else:
             return job
 
-def extract_res_annotations(results):
+
+def get_prot_annotations(results):
+    """Extracts protein-level annotations (e.g. GO-terms, 
+    subcellular locations etc.)"""
+    # Initialise dictionaries
+    slocs = set() # Curated subcellular locations
+    go_func = defaultdict(set) # Molecular function GO terms
+    go_proc = defaultdict(set) # Biological process GO terms
+    go_comp = defaultdict(set) # Cellular component GO terms
+    go_all = defaultdict(set) # All GO terms
+    # Get annotations for every provided entry
+    for idx, entry in enumerate(results['results']):
+        key = entry['from']
+        # Subcellular locations
+        for ann in entry['to']['comments']:
+            if ann['commentType'] == 'SUBCELLULAR LOCATION':
+                for sloc in ann['subcellularLocations']:
+                    slocs.add(sloc['location']['value'])
+        # Go terms
+        for ref in entry['to']['uniProtKBCrossReferences']:
+            if ref['id'].startswith('GO:'):
+                go_all[key].add(ref['id'])
+                # Add to specific GO categories
+                for p in ref['properties']:
+                    descr = p['value'].split(':')[1]
+                    go = f'{ref["id"]}|{descr}'
+                    if p['value'].startswith('C:'):
+                        go_comp[key].add(go)
+                    if p['value'].startswith('P:'):
+                        go_proc[key].add(go)
+                    if p['value'].startswith('F:'):
+                        go_func[key].add(go)
+    return slocs, go_all, go_func, go_proc, go_comp
+
+def get_res_annotations(results):
     """Extracts annotations at residue level, and variants if they
     exist"""
     # Initialise dictionaries
-    annotations = defaultdict(set)
+    features = defaultdict(set)
     variants = defaultdict(set)
     # Parse json and collect info
     for idx, entry in enumerate(results['results']):
         sequence = entry['to']['sequence']['value']
+        # Functional annotations and variants
         for feature in entry['to']['features']:
             start = feature['location']['start']['value']
             end = feature['location']['end']['value']
@@ -56,7 +92,7 @@ def extract_res_annotations(results):
                 resname = sequence[res-1]
                 key = (entry['from'], f'{resname}{res}')
                 # Get residue annotations
-                annotations[key].add(ftype)
+                features[key].add(ftype)
                 # Get variants
                 if ftype == 'Natural variant':
                     try:
@@ -66,14 +102,38 @@ def extract_res_annotations(results):
                         continue
                     for v in altseqs:
                         variants[key].add(v[k])
-    return annotations, variants
+    return features, variants
 
-def write_csv(annotations, variants, outfile):
+
+def write_csv(features, variants, slocs, go_all,
+              go_func, go_proc, go_comp, outfile):
     with open(outfile, 'w') as o:
-        print('uniprot_id,resid,annotations,variants', file=o)
-        for k,v in annotations.items():
+        header = ('uniprot_id,'
+                  'resid,'
+                  'features,'
+                  'variants,'
+                  'subcellular_locations,'
+                  'go_all,'
+                  'go_molecular_function,'
+                  'go_biological_process,'
+                  'go_cellular_component')
+        print(header, file=o)
+        for k,v in features.items():
             vnts = variants.get(k, set())   
-            print(f'{k[0]},{k[1]},{";".join(v)},{";".join(vnts)}', file=o)
+            _go_all = go_all.get(k[0], set())
+            _go_func = go_func.get(k[0], set())
+            _go_proc = go_proc.get(k[0], set())
+            _go_comp = go_comp.get(k[0], set())
+            string = (f'{k[0]},'
+                      f'{k[1]},'
+                      f'"{";".join(v)}",'
+                      f'"{";".join(vnts)}",'
+                      f'"{";".join(slocs)}",'
+                      f'"{";".join(_go_all)}",'
+                      f'"{";".join(_go_func)}",'
+                      f'"{";".join(_go_proc)}",'
+                      f'"{";".join(_go_comp)}"')
+            print(string, file=o)
     return
     
 
@@ -94,10 +154,12 @@ def main(infile, outfile):
     results = get_id_mapping_results(job_id)
 
     # Parse results json to get annotations
-    annotations, variants = extract_res_annotations(results)
+    features, variants = get_res_annotations(results)
+    slocs, go_all, go_func, go_proc, go_comp = get_prot_annotations(results)
     
     # Write csv
-    write_csv(annotations, variants, outfile)
+    write_csv(features, variants, slocs, go_all,
+              go_func, go_proc, go_comp, outfile)
 
     # All done
     return
