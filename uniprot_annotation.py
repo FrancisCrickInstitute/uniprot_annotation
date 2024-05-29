@@ -187,10 +187,13 @@ def get_prot_annotations(results):
     for idx, entry in enumerate(results['results']):
         key = entry['from']
         # Subcellular locations
-        for ann in entry['to']['comments']:
-            if ann['commentType'] == 'SUBCELLULAR LOCATION':
-                for sloc in ann['subcellularLocations']:
-                    slocs.add(sloc['location']['value'])
+        try:
+            for ann in entry['to']['comments']:
+                if ann['commentType'] == 'SUBCELLULAR LOCATION':
+                    for sloc in ann['subcellularLocations']:
+                        slocs.add(sloc['location']['value'])
+        except KeyError:
+            continue
         # Go terms
         for ref in entry['to']['uniProtKBCrossReferences']:
             if ref['id'].startswith('GO:'):
@@ -224,7 +227,10 @@ def get_res_annotations(results):
                 continue
             ftype = feature['type']
             for k, res in enumerate(range(start, end+1)):
-                resname = sequence[res-1]
+                try:
+                    resname = sequence[res-1]
+                except IndexError:
+                    continue
                 key = (entry['from'], f'{resname}{res}')
                 # Get residue annotations
                 features[key].add(ftype)
@@ -236,7 +242,10 @@ def get_res_annotations(results):
                     except KeyError:
                         continue
                     for v in altseqs:
-                        variants[key].add(v[k])
+                        try:
+                            variants[key].add(v[k])
+                        except Exception:
+                            variants[key].add('indel')
     return features, variants
 
 
