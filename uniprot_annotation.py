@@ -178,7 +178,7 @@ def get_prot_annotations(results):
     """Extracts protein-level annotations (e.g. GO-terms, 
     subcellular locations etc.)"""
     # Initialise dictionaries
-    slocs = set() # Curated subcellular locations
+    slocs = defaultdict(set) # Curated subcellular locations
     go_func = defaultdict(set) # Molecular function GO terms
     go_proc = defaultdict(set) # Biological process GO terms
     go_comp = defaultdict(set) # Cellular component GO terms
@@ -191,7 +191,7 @@ def get_prot_annotations(results):
             for ann in entry['to']['comments']:
                 if ann['commentType'] == 'SUBCELLULAR LOCATION':
                     for sloc in ann['subcellularLocations']:
-                        slocs.add(sloc['location']['value'])
+                        slocs[key].add(sloc['location']['value'])
         except KeyError:
             continue
         # Go terms
@@ -264,6 +264,7 @@ def write_csv(features, variants, slocs, go_all,
         print(header, file=o)
         for k,v in features.items():
             vnts = variants.get(k, set())   
+            _slocs = slocs.get(k[0], set())
             _go_all = go_all.get(k[0], set())
             _go_func = go_func.get(k[0], set())
             _go_proc = go_proc.get(k[0], set())
@@ -272,7 +273,7 @@ def write_csv(features, variants, slocs, go_all,
                       f'{k[1]},'
                       f'"{";".join(v)}",'
                       f'"{";".join(vnts)}",'
-                      f'"{";".join(slocs)}",'
+                      f'"{";".join(_slocs)}",'
                       f'"{";".join(_go_all)}",'
                       f'"{";".join(_go_func)}",'
                       f'"{";".join(_go_proc)}",'

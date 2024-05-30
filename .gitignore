@@ -5,6 +5,9 @@
 __pycache__/
 test/
 todel/
+results/
+data/*
+!data/sample*
 tt
 yy
 jj
